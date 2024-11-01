@@ -1,0 +1,48 @@
+const { bot, getJson, yts, song } = require('../lib');
+
+bot(
+    {
+        pattern: 'play ?(.*)',
+        fromMe: true,
+        desc: 'Play a song and get lyrics',
+        type: 'music',
+    },
+    async (message, match) => {
+        // Use the match input or the text from a reply message
+        match = match || message.reply_message.text;
+
+        if (!match) {
+            return await message.send('*Example: .play love me like you do*');
+        }
+
+        // Search for the song on YouTube
+        const result = await yts(match, 0, 1);
+        if (!result.length) {
+            return await message.send(`*${match} not found on YouTube*`);
+        }
+
+        const { title, id } = result[0];
+        await message.send(`_Downloading ${title}_`);
+
+        // Download the audio from YouTube
+        const buffer = await song(id);
+        if (!buffer) {
+            return await message.send('Failed to download audio!');
+        }
+
+        // Send the audio file
+        await message.send(buffer, { mimetype: 'audio/mpeg' }, 'audio');
+
+        // Fetch the lyrics from the API
+        const { status, result: lyricsResult } = await getJson(
+            `https://levanter.onrender.com/lyrics?name=${match}`
+        );
+        
+        if (!status) {
+            return await message.send('_Lyrics not found_');
+        }
+
+        // Send the lyrics
+        return await message.send('```' + lyricsResult + '```');
+    }
+);
